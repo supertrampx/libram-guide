@@ -22,3 +22,4 @@ A later client line is another branch, with its own `antora.yml`, and it shows u
 . xref:lua/manual.adoc[Lua 5.1] through xref:lua/environment.adoc[what the client changes]. This is the language an addon is allowed to use.
 . xref:addon/layout.adoc[Addon files], xref:addon/events.adoc[events], and xref:addon/saved-variables.adoc[saved variables]. A saved variable is how an addon keeps a log. The client writes that log to disk on logout or `/reload`.
 . The xref:auction/overview.adoc[auction house] chapters. They query the house, read prices and bids, and save a snapshot with the calls this build actually publishes.
+. The xref:examples/index.adoc[examples]. Four short addons string bag, quest, party-chat, and map calls from this snapshot, and each page says what the script is doing.

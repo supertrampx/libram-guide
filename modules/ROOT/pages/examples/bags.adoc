@@ -1,0 +1,175 @@
+= What is in the bags
+
+Bag Census answers a practical question: what am I carrying, which of it is a quest item, and what would a vendor pay for the rest.
+
+It chains these calls:
+
+* `C_Container.GetContainerNumSlots` and `C_Container.GetContainerItemInfo` walk each bag.
+* `C_Container.GetContainerItemQuestInfo` says whether the slot is a quest item.
+* `C_Item.GetItemInfo` supplies `sellPrice`. `C_Item.RequestLoadItemDataByID` asks the client to cache an item the first call could not describe.
+* `C_Container.CalculateTotalNumberOfFreeBagSlots` counts empty slots.
+* `GetMoney` and `C_CurrencyInfo.GetCoinText` turn the copper totals into text.
+
+`GetContainerItemInfo` is marked MayReturnNothing.
+An empty slot returns no value, so the script checks that `info` exists before it reads fields.
+`GetItemInfo` has the same flag.
+A missing item record is nil, and the script requests the data and fills the total in when `GET_ITEM_INFO_RECEIVED` arrives.
+
+The bag ids are `Enum.BagIndex` in this export.
+`Backpack` is 0.
+`Bag_1` through `Bag_4` are 1 through 4.
+Slot indexes are `luaIndex` values, so the slot loop starts at 1.
+
+`ContainerItemInfo` includes `itemID`, `itemName`, `stackCount`, and `hasNoValue`.
+The census skips `hasNoValue` when it adds `sellPrice`, because that field is how the structure marks an item with no vendor value.
+`sellPrice` itself is a return of `GetItemInfo`.
+The export does not add a sentence that says a vendor will buy the item for that amount.
+
+Create `Interface/AddOns/BagCensus/` in the `{client-folder}` client.
+
+== BagCensus.toc
+
+[source,text,subs="+attributes"]
+----
+## Interface: {interface}
+## Title: Bag Census
+## Notes: Lists bag contents, quest items, and vendor copper.
+## SavedVariables: BagCensusDB
+
+BagCensus.lua
+----
+
+== BagCensus.lua
+
+[source,lua]
+----
+local ADDON_NAME = ...
+
+BagCensusDB = BagCensusDB or {}
+
+local BAGS = {
+  Enum.BagIndex.Backpack,
+  Enum.BagIndex.Bag_1,
+  Enum.BagIndex.Bag_2,
+  Enum.BagIndex.Bag_3,
+  Enum.BagIndex.Bag_4,
+}
+
+local pending = {}
+
+local function coin(copper)
+  if type(copper) ~= "number" then
+    return "0"
+  end
+  return C_CurrencyInfo.GetCoinText(copper)
+end
+
+local function snapshot()
+  local rows = {}
+  local vendor = 0
+  local questItems = 0
+
+  for _, bag in ipairs(BAGS) do
+    local slots = C_Container.GetContainerNumSlots(bag)
+    for slot = 1, slots do
+      local info = C_Container.GetContainerItemInfo(bag, slot)
+      if info then
+        local quest = C_Container.GetContainerItemQuestInfo(bag, slot)
+        local sellPrice
+        local itemName, _, _, _, _, _, _, _, _, _, price = C_Item.GetItemInfo(info.itemID)
+        if itemName then
+          sellPrice = price
+        else
+          pending[info.itemID] = true
+          C_Item.RequestLoadItemDataByID(info.itemID)
+        end
+        if sellPrice and not info.hasNoValue then
+          vendor = vendor + sellPrice * info.stackCount
+        end
+        if quest.isQuestItem then
+          questItems = questItems + 1
+        end
+        rows[#rows + 1] = {
+          bag = bag,
+          slot = slot,
+          itemID = info.itemID,
+          name = info.itemName,
+          count = info.stackCount,
+          quest = quest.isQuestItem,
+        }
+      end
+    end
+  end
+
+  BagCensusDB.last = {
+    rows = rows,
+    vendor = vendor,
+    questItems = questItems,
+    free = C_Container.CalculateTotalNumberOfFreeBagSlots(),
+    money = GetMoney(),
+  }
+  return BagCensusDB.last
+end
+
+local function report(listRows)
+  local last = BagCensusDB.last
+  if not last then
+    last = snapshot()
+  end
+  print(string.format(
+    "Bags: %d items, %d quest items, %d free. Vendor %s. You have %s.",
+    #last.rows,
+    last.questItems,
+    last.free,
+    coin(last.vendor),
+    coin(last.money)
+  ))
+  if listRows then
+    for _, row in ipairs(last.rows) do
+      local mark = row.quest and "quest" or "item"
+      print(string.format("%s x%d (%s)", row.name, row.count, mark))
+    end
+  end
+end
+
+local frame = CreateFrame("Frame")
+frame:RegisterEvent("PLAYER_ENTERING_WORLD")
+frame:RegisterEvent("BAG_UPDATE")
+frame:RegisterEvent("GET_ITEM_INFO_RECEIVED")
+frame:SetScript("OnEvent", function(self, event, bagOrItemID, success)
+  if event == "GET_ITEM_INFO_RECEIVED" then
+    if success and pending[bagOrItemID] then
+      pending[bagOrItemID] = nil
+      snapshot()
+    end
+    return
+  end
+  snapshot()
+end)
+
+SLASH_BAGCENSUS1 = "/bagcensus"
+SlashCmdList.BAGCENSUS = function(message)
+  snapshot()
+  report(message == "list")
+end
+----
+
+== What each part is doing
+
+`PLAYER_ENTERING_WORLD` carries `isInitialLogin` and `isReloadingUi`.
+The handler does not use them.
+It rereads the bags once the world is available.
+`BAG_UPDATE` carries `bagID`, the bag that changed.
+The census rereads every carried bag so the vendor total still matches the whole inventory.
+
+`GetContainerItemQuestInfo` returns an `ItemQuestInfo`.
+The export does not mark that call as MayReturnNothing, so the script reads `isQuestItem` on every occupied slot.
+`questID` on that structure can be nil.
+The census only needs the boolean.
+
+`GetCoinText` takes the copper amount.
+Its separator argument defaults to `", "`, so the script omits it.
+
+`/bagcensus` prints the totals.
+`/bagcensus list` prints one line per occupied slot.
+The saved global `BagCensusDB.last` is the same snapshot, written out on logout or `/reload`.

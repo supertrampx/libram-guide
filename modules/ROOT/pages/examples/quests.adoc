@@ -1,0 +1,150 @@
+= Quest log, ready to turn in
+
+Quest Board walks the log and separates three kinds of rows: headers, quests the client marks complete, and quests that still have unfinished objective text.
+
+The client describes the calls that make that split possible:
+
+[quote]
+____
+This is the maximum number of quests a player can be on, including hidden quests, world quests, emissaries etc
+____
+
+That sentence is `C_QuestLog.GetMaxNumQuests`.
+The board uses it as the ceiling, and it uses `GetNumQuestLogEntries` for the rows currently shown.
+
+[quote]
+____
+Returns a valid title for anything that is in the quest log.
+____
+
+That is `GetTitleForLogIndex`.
+A header has a title too.
+
+[quote]
+____
+Only returns a questID for actual quests, not headers
+____
+
+That is `GetQuestIDForLogIndex`.
+The script also reads `QuestInfo.isHeader` from `GetInfo`, and it only calls `IsComplete` and `GetQuestObjectives` when a quest id came back.
+
+`GetNumQuestLogEntries` returns two numbers: `numShownEntries` and `numQuests`.
+The loop runs `1` through `numShownEntries`, because that count includes the header rows and the indexes are `luaIndex` values.
+`numQuests` is the count of quests, and the report prints it.
+
+`GetQuestObjectives` is marked MayReturnNothing.
+The script checks the table before it reads `text`, `finished`, `numFulfilled`, and `numRequired`.
+
+Create `Interface/AddOns/QuestBoard/` in the `{client-folder}` client.
+
+== QuestBoard.toc
+
+[source,text,subs="+attributes"]
+----
+## Interface: {interface}
+## Title: Quest Board
+## Notes: Lists ready quests and unfinished objectives.
+## SavedVariables: QuestBoardDB
+
+QuestBoard.lua
+----
+
+== QuestBoard.lua
+
+[source,lua]
+----
+local ADDON_NAME = ...
+
+QuestBoardDB = QuestBoardDB or {}
+
+local function readLog()
+  local shown, numQuests = C_QuestLog.GetNumQuestLogEntries()
+  local ready = {}
+  local open = {}
+
+  for index = 1, shown do
+    local info = C_QuestLog.GetInfo(index)
+    if info and not info.isHeader then
+      local title = C_QuestLog.GetTitleForLogIndex(index)
+      local questID = C_QuestLog.GetQuestIDForLogIndex(index)
+      if questID and C_QuestLog.IsComplete(questID) then
+        ready[#ready + 1] = title or info.title
+      elseif questID then
+        local objectives = C_QuestLog.GetQuestObjectives(questID)
+        local left = {}
+        if objectives then
+          for _, objective in ipairs(objectives) do
+            if not objective.finished then
+              left[#left + 1] = objective.text
+            end
+          end
+        end
+        open[#open + 1] = {
+          title = title or info.title,
+          questID = questID,
+          left = left,
+        }
+      end
+    end
+  end
+
+  QuestBoardDB.last = {
+    shown = shown,
+    numQuests = numQuests,
+    maxQuests = C_QuestLog.GetMaxNumQuests(),
+    ready = ready,
+    open = open,
+  }
+  return QuestBoardDB.last
+end
+
+local function report()
+  local last = QuestBoardDB.last or readLog()
+  print(string.format(
+    "Quest log: %d quests shown in %d rows. Cap %d. Ready to turn in: %d.",
+    last.numQuests,
+    last.shown,
+    last.maxQuests,
+    #last.ready
+  ))
+  for _, title in ipairs(last.ready) do
+    print("Ready: " .. title)
+  end
+  for _, quest in ipairs(last.open) do
+    if #quest.left == 0 then
+      print("Open: " .. quest.title)
+    else
+      print("Open: " .. quest.title .. " — " .. table.concat(quest.left, "; "))
+    end
+  end
+end
+
+local frame = CreateFrame("Frame")
+frame:RegisterEvent("PLAYER_ENTERING_WORLD")
+frame:RegisterEvent("QUEST_LOG_UPDATE")
+frame:SetScript("OnEvent", function()
+  readLog()
+end)
+
+SLASH_QUESTBOARD1 = "/quests"
+SlashCmdList.QUESTBOARD = function()
+  readLog()
+  report()
+end
+----
+
+== What each part is doing
+
+`QUEST_LOG_UPDATE` has no payload.
+It fires often, so the handler only stores the snapshot.
+`/quests` is what prints it.
+That keeps the chat frame readable while you accept and complete quests.
+
+`GetInfo` returns `QuestInfo`, and that return is nilable.
+A missing row is skipped.
+`isHeader` is a boolean on the structure.
+Header rows stay out of both lists because they are group labels, and the client already said a header has no quest id.
+
+An objective with `finished` false contributes its `text`.
+`numFulfilled` and `numRequired` are on the same structure when you want the counts beside that sentence.
+This example prints the text the client already wrote.

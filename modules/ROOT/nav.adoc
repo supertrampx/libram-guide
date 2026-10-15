@@ -17,3 +17,9 @@
 ** xref:auction/scan.adoc[Query the whole house]
 ** xref:auction/prices.adoc[Prices and lowest bids]
 ** xref:auction/price-log.adoc[Save prices to the log]
+* Examples
+** xref:examples/index.adoc[How these examples work]
+** xref:examples/bags.adoc[What is in the bags]
+** xref:examples/quests.adoc[Quest log, ready to turn in]
+** xref:examples/party.adoc[A note to the party]
+** xref:examples/whereabouts.adoc[Where you are]

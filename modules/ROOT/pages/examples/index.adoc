@@ -1,0 +1,21 @@
+= Examples
+
+These are small addons written for this guide.
+Each one strings together calls from the {display-name} {build-version} export and says what that line is doing.
+The scripts are examples.
+They are not scripts shipped by Blizzard.
+
+The xref:auction/overview.adoc[auction chapters] are the long example: query the house, read prices, and save a log.
+The pages here are shorter, and each one is a complete addon you can drop into `Interface/AddOns`.
+
+== The four addons
+
+. xref:examples/bags.adoc[Bag census] reads every carried bag, marks quest items, and totals the vendor copper `C_Item.GetItemInfo` reports.
+. xref:examples/quests.adoc[Quest board] walks the quest log, separates headers from quests, and lists objectives that are still open.
+. xref:examples/party.adoc[Party note] registers an addon-message prefix and sends a short line to the party, including how much money you are carrying.
+. xref:examples/whereabouts.adoc[Whereabouts] records your name, class, level, map, calendar time, and money, and keeps that record in a saved variable.
+
+Read xref:addon/layout.adoc[addon files] first if the TOC and the saved-variable global are new.
+The interface number in each TOC is {interface}, from this snapshot.
+`GetBuildInfo` is a global in the export, and one of its returns is `interfaceVersion`.
+Use that number when the client you are loading is a different build.

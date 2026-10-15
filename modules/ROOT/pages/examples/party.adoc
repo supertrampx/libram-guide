@@ -1,0 +1,136 @@
+= A note to the party
+
+Party Note sends one short addon message to the people in your party, and it prints the notes that come back.
+The payload in this example is the copper you are carrying, formatted by `C_CurrencyInfo.GetCoinText`, so a party can see that figure without opening a trade window.
+
+The client describes the four calls the addon has to respect:
+
+[quote]
+____
+Registers interest in addon messages with this prefix, cannot be an empty string.
+____
+
+[quote]
+____
+Returns false if addons are allowed to send outgoing chat messages. This is controlled on a realm-by-realm basis (tournament realms allow it), and the ability for addons to receive comms is controlled separately.
+____
+
+[quote]
+____
+Returns true if API security restrictions regarding chat messaging are in effect.
+____
+
+[quote]
+____
+Sends a text payload to other clients specified by chatChannel and target which are registered to listen for prefix.
+____
+
+`SendAddonMessage` takes `prefix`, `message`, `chatType`, and `target`.
+The export says `chatType` is a ChatType and defaults to `SLASH_CMD_PARTY`.
+The script omits it, so the note goes to the party.
+`target` is documented as applying only to targeted channels, so a party send does not pass one.
+
+The result enums in this export include `Success`, `DuplicatePrefix`, `NotInGroup`, `AddonMessageThrottle`, `AddOnMessageLockdown`, `InvalidPrefix`, and `InvalidMessage`.
+The script treats `Success` and `DuplicatePrefix` as a prefix it can send with.
+
+`CHAT_MSG_ADDON` delivers `prefix`, `text`, `channel`, `sender`, `target`, `zoneChannelID`, `localID`, `name`, and `instanceID`.
+The handler keeps the note when the prefix matches, and it prints `sender` and `text`.
+
+Create `Interface/AddOns/PartyNote/` in the `{client-folder}` client.
+
+== PartyNote.toc
+
+[source,text,subs="+attributes"]
+----
+## Interface: {interface}
+## Title: Party Note
+## Notes: Sends a short addon message to the party.
+
+PartyNote.lua
+----
+
+== PartyNote.lua
+
+[source,lua]
+----
+local PREFIX = "PARTYNOTE"
+
+local function register()
+  local result = C_ChatInfo.RegisterAddonMessagePrefix(PREFIX)
+  return result == Enum.RegisterAddonMessagePrefixResult.Success
+    or result == Enum.RegisterAddonMessagePrefixResult.DuplicatePrefix
+end
+
+local function moneyLine()
+  return "carrying " .. C_CurrencyInfo.GetCoinText(GetMoney())
+end
+
+local function send(text)
+  if C_ChatInfo.AreOutgoingAddonChatMessagesRestricted() then
+    print("Party Note: addon chat is restricted on this realm.")
+    return
+  end
+  if C_ChatInfo.InChatMessagingLockdown() then
+    print("Party Note: chat messaging lockdown is in effect.")
+    return
+  end
+  local result = C_ChatInfo.SendAddonMessage(PREFIX, text)
+  if result == Enum.SendAddonMessageResult.Success then
+    return
+  end
+  if result == Enum.SendAddonMessageResult.NotInGroup then
+    print("Party Note: the default channel is the party, and you are not in one.")
+    return
+  end
+  if result == Enum.SendAddonMessageResult.AddonMessageThrottle then
+    print("Party Note: the client throttled the message.")
+    return
+  end
+  if result == Enum.SendAddonMessageResult.AddOnMessageLockdown then
+    print("Party Note: addon messages are locked down.")
+    return
+  end
+  print("Party Note: send result " .. tostring(result))
+end
+
+local frame = CreateFrame("Frame")
+frame:RegisterEvent("PLAYER_LOGIN")
+frame:RegisterEvent("CHAT_MSG_ADDON")
+frame:SetScript("OnEvent", function(self, event, prefix, text, channel, sender)
+  if event == "PLAYER_LOGIN" then
+    if not register() then
+      print("Party Note: the prefix was rejected.")
+    end
+    return
+  end
+  if prefix == PREFIX then
+    print(string.format("Party Note from %s: %s", sender, text))
+  end
+end)
+
+SLASH_PARTYNOTE1 = "/partynote"
+SlashCmdList.PARTYNOTE = function(message)
+  if message == "" then
+    send(moneyLine())
+  else
+    send(message)
+  end
+end
+----
+
+== What each part is doing
+
+`PLAYER_LOGIN` has no payload.
+Registration happens there, before a slash command can send, because the other clients only receive prefixes they registered.
+
+`/partynote` with no extra text sends the money line.
+`GetMoney` is a global in this export and returns the copper total as a number.
+`GetCoinText` turns that number into the coin sentence.
+`/partynote hello` sends the words you typed instead.
+
+A received note is ignored when its prefix is something else.
+Several addons share `CHAT_MSG_ADDON`, and the prefix is how this one recognizes its own text.
+
+The xref:examples/bags.adoc[bag census] stores a vendor total on `BagCensusDB.last`.
+A later edit can pass `C_CurrencyInfo.GetCoinText(BagCensusDB.last.vendor)` into `send` when that saved table exists.
+This page keeps the message to money on hand, which needs only `GetMoney` and the chat calls.

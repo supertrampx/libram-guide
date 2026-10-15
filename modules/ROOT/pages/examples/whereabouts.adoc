@@ -1,0 +1,149 @@
+= Where you are
+
+Whereabouts writes down where the character is when you enter the world, and `/where` prints the latest line.
+It is the small record you want before a logout: name, class, level, map, the calendar time, the server time number, and the money you were holding.
+
+The calls, in the order the script uses them:
+
+* `UnitName("player")` returns `unitName` and `unitServer`.
+* `UnitClass("player")` returns `className`, `classFilename`, and `classID`.
+* `UnitLevel("player")` returns the level. The export names that argument `name` and types it as a cstring. This script passes the same `"player"` token the other two calls take.
+* `C_Map.GetBestMapForUnit` returns `uiMapID`. The client says it only works for the player and party members. The id is nilable, so the script checks it.
+* `C_Map.GetMapInfo` returns `UiMapDetails`, including `name`. The call may return nothing, so a missing map stays out of the sentence.
+* `C_DateAndTime.GetCurrentCalendarTime` returns a `CalendarTime` with `year`, `month`, `monthDay`, `hour`, and `minute`. `month`, `monthDay`, and `weekday` are `luaIndex` fields, so those numbers start at 1.
+* `C_DateAndTime.GetServerTimeLocal` returns `serverTimeLocal` as a `time_t`. The script stores that number beside the calendar fields.
+* `GetMoney` and `C_CurrencyInfo.GetCoinText` record the copper as text.
+
+Create `Interface/AddOns/Whereabouts/` in the `{client-folder}` client.
+
+== Whereabouts.toc
+
+[source,text,subs="+attributes"]
+----
+## Interface: {interface}
+## Title: Whereabouts
+## Notes: Saves where you were, and how much you were holding.
+## SavedVariables: WhereaboutsDB
+
+Whereabouts.lua
+----
+
+== Whereabouts.lua
+
+[source,lua]
+----
+local ADDON_NAME = ...
+
+WhereaboutsDB = WhereaboutsDB or { visits = {} }
+
+local function coin(copper)
+  if type(copper) ~= "number" then
+    return "0"
+  end
+  return C_CurrencyInfo.GetCoinText(copper)
+end
+
+local function clock(date)
+  return string.format(
+    "%04d-%02d-%02d %02d:%02d",
+    date.year,
+    date.month,
+    date.monthDay,
+    date.hour,
+    date.minute
+  )
+end
+
+local function here()
+  local unitName, unitServer = UnitName("player")
+  local className = UnitClass("player")
+  local level = UnitLevel("player")
+  local mapName
+  local uiMapID = C_Map.GetBestMapForUnit("player")
+  if uiMapID then
+    local info = C_Map.GetMapInfo(uiMapID)
+    if info then
+      mapName = info.name
+    end
+  end
+  local date = C_DateAndTime.GetCurrentCalendarTime()
+  return {
+    name = unitName,
+    server = unitServer,
+    className = className,
+    level = level,
+    map = mapName,
+    uiMapID = uiMapID,
+    calendar = clock(date),
+    serverTime = C_DateAndTime.GetServerTimeLocal(),
+    money = GetMoney(),
+  }
+end
+
+local function remember()
+  local visit = here()
+  local visits = WhereaboutsDB.visits
+  visits[#visits + 1] = visit
+  return visit
+end
+
+local function line(visit)
+  local who = visit.name or "you"
+  if visit.server and visit.server ~= "" then
+    who = who .. "-" .. visit.server
+  end
+  local place = visit.map or "an unknown map"
+  return string.format(
+    "%s, %s %s, %s, at %s, holding %s.",
+    who,
+    visit.className or "unknown class",
+    tostring(visit.level),
+    place,
+    visit.calendar,
+    coin(visit.money)
+  )
+end
+
+local frame = CreateFrame("Frame")
+frame:RegisterEvent("ADDON_LOADED")
+frame:RegisterEvent("PLAYER_ENTERING_WORLD")
+frame:SetScript("OnEvent", function(self, event, name)
+  if event == "ADDON_LOADED" then
+    if name == ADDON_NAME then
+      WhereaboutsDB.visits = WhereaboutsDB.visits or {}
+    end
+    return
+  end
+  remember()
+end)
+
+SLASH_WHEREABOUTS1 = "/where"
+SlashCmdList.WHEREABOUTS = function()
+  local visits = WhereaboutsDB.visits
+  local visit = visits[#visits]
+  if not visit then
+    visit = remember()
+  end
+  print(line(visit))
+  print(string.format("%d visits saved. Latest server time %s.", #visits, tostring(visit.serverTime)))
+end
+----
+
+== What each part is doing
+
+`ADDON_LOADED` passes the addon name.
+The handler creates the `visits` table on the first load, before `PLAYER_ENTERING_WORLD` appends a row.
+The client writes `WhereaboutsDB` on logout or `/reload`.
+That file is the history.
+
+`PLAYER_ENTERING_WORLD` also fires on a `/reload`.
+Each of those is a new row, so the table is a trail of entrances, one line each.
+
+`GetMapInfo` is only called when `GetBestMapForUnit` returned an id.
+The map sentence uses `UiMapDetails.name`.
+The id is stored next to it as `uiMapID` so a later script can pass that number to other map calls.
+
+`/where` prints the latest visit and how many rows are saved.
+It also prints `serverTime`, the raw `time_t` from `GetServerTimeLocal`.
+The calendar text is the separate `GetCurrentCalendarTime` reading, formatted from the fields the structure actually has.
+There is no seconds field on `CalendarTime` in this export.
