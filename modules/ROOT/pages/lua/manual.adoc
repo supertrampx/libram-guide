@@ -1,0 +1,30 @@
+= The Lua 5.1 manual
+
+The language reference is the Lua 5.1 reference manual from Lua.org, PUC-Rio.
+Libram does not rewrite that manual.
+The guide around it is the WoW addon layer: the libraries the client withholds, the libraries it adds, and the calls in this build.
+
+Import the manual into this site:
+
+[source,bash]
+----
+npm run docs:import-lua
+----
+
+After that import, the local copy is served from this site:
+
+* link:{lua-manual}[Reference manual]
+* link:{lua-contents}[Contents]
+* link:{lua-license}[Lua license]
+
+The same pages stay on lua.org:
+
+* https://www.lua.org/manual/5.1/[https://www.lua.org/manual/5.1/]
+* https://www.lua.org/license.html[https://www.lua.org/license.html]
+
+The manual is freely available under the Lua license.
+The import script saves `NOTICE.txt` beside the HTML.
+Run the import again whenever you want a fresh copy of those pages.
+
+Use the manual for the language rules: lexical conventions, expressions, statements, the standard libraries, and the exact meaning of `pcall`, `string.find`, and `table.sort`.
+Use the rest of this guide for how that language is embedded in an addon, and for the Classic API in Libram.

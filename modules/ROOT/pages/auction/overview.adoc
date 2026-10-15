@@ -1,0 +1,108 @@
+= The auction API in this build
+
+`C_AuctionHouse` is the auction house API in {display-name} {build-version}.
+The calls below are the ones the price log uses.
+Argument and return names are the names in the export.
+
+== Full list
+
+The client describes `ReplicateItems` as the call that queries the entire house:
+
+[quote]
+____
+This function should be used in place of an 'allItem' QueryAuctionItems call to query the entire auction house.
+____
+
+[source,lua]
+----
+C_AuctionHouse.ReplicateItems()
+----
+
+After `REPLICATE_ITEM_LIST_UPDATE`, read the rows:
+
+[source,lua]
+----
+local count = C_AuctionHouse.GetNumReplicateItems()
+local name, texture, itemCount, qualityID, usable, level, levelType,
+  minBid, minIncrement, buyoutPrice, bidAmount,
+  highBidder, bidderFullName, owner, ownerFullName,
+  saleStatus, itemID, hasAllInfo = C_AuctionHouse.GetReplicateItemInfo(index)
+----
+
+`GetReplicateItemInfo` takes `index` as a `number`.
+The loop in the next chapter runs from 0 through `count - 1`.
+Search-result getters in the same system take a `luaIndex`, and those loops start at 1.
+
+`GetReplicateItemLink(index)` returns `itemLink`.
+`GetReplicateItemTimeLeft(index)` returns `timeLeft`.
+
+== One item
+
+`MakeItemKey` builds the key a search takes.
+
+[source,lua]
+----
+local itemKey = C_AuctionHouse.MakeItemKey(itemID, 0, 0, 0)
+----
+
+The fields are `itemID`, `itemLevel`, `itemSuffix`, and `battlePetSpeciesID`.
+
+`SendSearchQuery` asks for that key.
+The client says:
+
+[quote]
+____
+Search queries are restricted to 100 calls per minute. These should not be used to query the entire auction house. See ReplicateItems.
+____
+
+[source,lua]
+----
+C_AuctionHouse.SendSearchQuery(itemKey, sorts, separateOwnerItems, minLevelFilter, maxLevelFilter)
+----
+
+`IsThrottledMessageSystemReady` returns `canSendThrottledMessage` before another throttled query.
+
+On `ITEM_SEARCH_RESULTS_UPDATED` the payload is `itemKey` and `newAuctionID`.
+Then:
+
+[source,lua]
+----
+local count = C_AuctionHouse.GetNumItemSearchResults(itemKey)
+local row = C_AuctionHouse.GetItemSearchResultInfo(itemKey, index)
+----
+
+`ItemSearchResultInfo` includes `auctionID`, `quantity`, `itemLink`, `minBid`, `bidAmount`, and `buyoutAmount`.
+`minBid` is the minimum bid field.
+`bidAmount` is the current bid field.
+`buyoutAmount` is the buyout field.
+All three are `BigUInteger` copper counts.
+
+`GetAuctionInfoByID(auctionID)` returns `priceInfo` as `AuctionInfo`, or nil.
+`AuctionInfo` includes `minBid`, `bidAmount`, `buyoutAmount`, and `itemLink`.
+
+== Commodities
+
+A commodity row is `CommoditySearchResultInfo`: `itemID`, `quantity`, `unitPrice`, `auctionID`.
+`unitPrice` is a `BigUInteger`.
+
+[source,lua]
+----
+local count = C_AuctionHouse.GetNumCommoditySearchResults(itemID)
+local row = C_AuctionHouse.GetCommoditySearchResultInfo(itemID, index)
+----
+
+`COMMODITY_SEARCH_RESULTS_UPDATED` carries `itemID`.
+`GetMaxCommoditySearchResultPrice(itemID)` returns `maxUnitPrice`, the high end, not the low end.
+The lowest unit price is the minimum of the rows.
+
+== Events with no payload
+
+`AUCTION_HOUSE_SHOW` has no payload.
+The scan calls `ReplicateItems` from that handler.
+
+`REPLICATE_ITEM_LIST_UPDATE` has no payload and no client description.
+The scan reads the replicate list from that handler.
+
+`AUCTION_HOUSE_BROWSE_RESULTS_UPDATED` has no payload.
+A browse uses `SendBrowseQuery` and `GetBrowseResults`.
+The price log uses replicate and item search, not browse.

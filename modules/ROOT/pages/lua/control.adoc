@@ -1,0 +1,83 @@
+= Control flow
+
+[source,lua]
+----
+local ready = true
+if ready and count ~= 0 then
+  print(count)
+elseif count == 0 then
+  print("empty")
+else
+  print("waiting")
+end
+----
+
+`if` tests anything.
+`nil` and `false` are the only false values.
+`0` and `""` are true.
+
+== Loops
+
+[source,lua]
+----
+for index = 1, #slots do
+  print(slots[index])
+end
+
+local index = 0
+while index < count do
+  index = index + 1
+end
+
+repeat
+  index = index - 1
+until index == 0
+----
+
+`for index = first, last, step` uses numbers.
+The auction scan uses this form because the index belongs to the client, not to a Lua list.
+
+`break` leaves the innermost loop.
+Lua 5.1 has no `continue` and no `goto`.
+Skip a row with an `if` inside the loop.
+
+[source,lua]
+----
+for index = 1, count do
+  local row = rows[index]
+  if row.buyoutPrice and row.buyoutPrice > 0 then
+    print(row.itemID, row.buyoutPrice)
+  end
+end
+----
+
+== Errors
+
+`error(message)` stops the current addon call.
+`pcall` runs a function and catches that stop.
+
+[source,lua]
+----
+local ok, result = pcall(function()
+  return C_CurrencyInfo.GetCoinText(buyoutPrice)
+end)
+
+if ok then
+  print(result)
+else
+  print("coin text failed", result)
+end
+----
+
+`pcall` returns `true` and the function's returns when the call finishes.
+It returns `false` and the error value when the call stops.
+Use it around a chunk whose inputs can be missing.
+Do not wrap the whole addon in one `pcall`.
+A hidden error is harder to read than a red error in the chat frame.
+
+`assert(value, message)` returns `value` when it is neither `nil` nor `false`, and stops otherwise.
+
+[source,lua]
+----
+local price = assert(row.buyoutPrice, "row has no buyout")
+----

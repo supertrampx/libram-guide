@@ -1,0 +1,105 @@
+= Saved variables
+
+An addon cannot open a file.
+`io` is not in the addon environment.
+The client still writes a log for you, as a saved variable.
+
+Declare the global in the TOC:
+
+[source,text]
+----
+## SavedVariables: PriceLogDB
+----
+
+Use that global from Lua.
+Give it a table on the first run, after the client has restored any previous save.
+
+[source,lua]
+----
+local function database()
+  PriceLogDB = PriceLogDB or { scans = {} }
+  PriceLogDB.scans = PriceLogDB.scans or {}
+  return PriceLogDB
+end
+
+local function remember(rows)
+  local db = database()
+  db.scans[#db.scans + 1] = {
+    at = C_DateAndTime.GetServerTimeLocal(),
+    rows = rows,
+  }
+end
+----
+
+`C_DateAndTime.GetServerTimeLocal` returns `serverTimeLocal`.
+The export types it as `time_t` and does not add a description.
+
+== The file the client writes
+
+On logout, or when you run `/reload`, the client writes:
+
+[source,text,subs="+attributes"]
+----
+{client-folder}/WTF/Account/<Account>/SavedVariables/PriceLog.lua
+----
+
+That file is the log.
+It is ordinary Lua.
+A later scan appends another entry to `scans` the next time the addon loads and runs `remember`.
+
+A short save looks like this:
+
+[source,lua]
+----
+PriceLogDB = {
+  scans = {
+    {
+      at = 1729000000,
+      rows = {
+        {
+          itemID = 2589,
+          name = "Linen Cloth",
+          count = 20,
+          minBid = 100,
+          bidAmount = 100,
+          buyoutPrice = 5000,
+        },
+      },
+    },
+  },
+}
+----
+
+The numbers above are the shape of the file, not a recorded auction.
+
+== Account and character
+
+`## SavedVariables` is per account.
+`## SavedVariablesPerCharacter` is per character, written under `SavedVariables` next to the character name.
+A price log is account-wide, so it uses `SavedVariables`.
+
+== What survives
+
+Tables, numbers, strings, and booleans survive.
+Functions do not.
+`nil` fields are omitted.
+Keys should be strings or numbers.
+Put a fresh table into `scans` on each snapshot so a later edit of one row does not alias an older snapshot.
+
+[source,lua]
+----
+local function copyRow(row)
+  return {
+    itemID = row.itemID,
+    name = row.name,
+    count = row.count,
+    minBid = row.minBid,
+    bidAmount = row.bidAmount,
+    buyoutPrice = row.buyoutPrice,
+  }
+end
+----
+
+The in-memory table changes immediately.
+The file on disk changes at logout or `/reload`.
+Read the file after one of those, not while the auction house is still open, if you want the newest scan.

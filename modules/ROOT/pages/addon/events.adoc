@@ -1,0 +1,77 @@
+= Frames and events
+
+An addon learns that something happened by registering an event on a frame.
+`CreateFrame`, `RegisterEvent`, and `SetScript` are the frame environment.
+
+[source,lua]
+----
+local frame = CreateFrame("Frame")
+frame:RegisterEvent("AUCTION_HOUSE_SHOW")
+frame:SetScript("OnEvent", function(self, event)
+  -- AUCTION_HOUSE_SHOW has no payload in this build
+end)
+----
+
+The first argument is the frame.
+The second is the event name.
+Further arguments are the payload listed for that event in Libram.
+
+[source,lua]
+----
+frame:RegisterEvent("AUCTION_HOUSE_AUCTION_CREATED")
+frame:SetScript("OnEvent", function(self, event, auctionID)
+  -- the client says: This signal is not used in the base UI but is included for AddOn ease-of-use.
+end)
+----
+
+One frame can hold many events.
+The handler branches on the event name.
+
+[source,lua]
+----
+frame:RegisterEvent("AUCTION_HOUSE_SHOW")
+frame:RegisterEvent("REPLICATE_ITEM_LIST_UPDATE")
+frame:SetScript("OnEvent", function(self, event)
+  if event == "AUCTION_HOUSE_SHOW" then
+    C_AuctionHouse.ReplicateItems()
+  elseif event == "REPLICATE_ITEM_LIST_UPDATE" then
+    -- read GetNumReplicateItems and GetReplicateItemInfo
+  end
+end)
+----
+
+`UnregisterEvent` removes one.
+`UnregisterAllEvents` removes all of them from that frame.
+
+== Payload names
+
+Read the payload off the event page in the API browser.
+`ITEM_SEARCH_RESULTS_UPDATED` carries `itemKey` and `newAuctionID`.
+`COMMODITY_SEARCH_RESULTS_UPDATED` carries `itemID`.
+`REPLICATE_ITEM_LIST_UPDATE` and `AUCTION_HOUSE_SHOW` carry nothing.
+
+[source,lua]
+----
+frame:RegisterEvent("ITEM_SEARCH_RESULTS_UPDATED")
+frame:SetScript("OnEvent", function(self, event, itemKey, newAuctionID)
+end)
+----
+
+If the handler ignores an argument, name it and do not use it.
+Dropping it from the signature shifts the later names.
+
+== When the handler runs
+
+The handler runs on the next dispatch of that event.
+It does not run because a function was called, unless that call is what causes the client to emit the event.
+The auction chapters pair each query with the event whose name matches the result list.
+The export names those events.
+It does not write a sentence that says "this event follows this call," except where a client sentence is quoted.
+
+== Secure frames
+
+Some UI is secure.
+An addon can read a secure frame and can register ordinary events.
+It cannot move or click protected buttons during combat.
+The auction scripts in this guide create their own frame and only read auction results.
+They do not wrap a protected button.

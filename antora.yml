@@ -1,0 +1,15 @@
+name: guide
+title: Addon guide
+version: "1.60.1"
+display_version: Classic Beta 1.60.1
+start_page: guide:ROOT:index.adoc
+nav:
+  - modules/ROOT/nav.adoc
+asciidoc:
+  attributes:
+    build-version: 1.60.1.70374
+    interface: "16001"
+    client-folder: _classic_beta_
+    product: wow_classic_beta
+    snapshot: wow-classic-beta-1.60.1.70374
+    display-name: Classic Beta

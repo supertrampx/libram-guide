@@ -1,0 +1,248 @@
+= Save prices to the log
+
+This is a complete addon.
+It queries the whole house with `ReplicateItems`, keeps the lowest bid and the lowest buyout per item, and appends that snapshot to `PriceLogDB`.
+The client writes `PriceLogDB` to disk on logout or `/reload`.
+That file is the log.
+The addon never calls `io.open`.
+
+Create the folder `Interface/AddOns/PriceLog/` in the `{client-folder}` client.
+
+== PriceLog.toc
+
+[source,text,subs="+attributes"]
+----
+## Interface: {interface}
+## Title: Price Log
+## Notes: Saves auction prices from C_AuctionHouse.ReplicateItems.
+## SavedVariables: PriceLogDB
+
+PriceLog.lua
+----
+
+{interface} is the interface number of the build this guide was written against.
+Replace it if `GetBuildInfo` reports a different `interfaceVersion`.
+
+== PriceLog.lua
+
+[source,lua]
+----
+local ADDON_NAME = ...
+
+PriceLogDB = PriceLogDB or { scans = {} }
+
+local function database()
+  PriceLogDB.scans = PriceLogDB.scans or {}
+  return PriceLogDB
+end
+
+local function payable(copper)
+  return type(copper) == "number" and copper > 0
+end
+
+local function consider(best, copper)
+  if not payable(copper) then
+    return best
+  end
+  if not best or copper < best then
+    return copper
+  end
+  return best
+end
+
+local function readReplicateList()
+  local byItem = {}
+  local count = C_AuctionHouse.GetNumReplicateItems()
+
+  for index = 0, count - 1 do
+    local name, _, itemCount, _, _, _, _,
+      minBid, _, buyoutPrice, bidAmount,
+      _, _, _, _, _, itemID, hasAllInfo =
+      C_AuctionHouse.GetReplicateItemInfo(index)
+
+    if itemID and itemID ~= 0 and hasAllInfo ~= false then
+      local row = byItem[itemID]
+      if not row then
+        row = { itemID = itemID, name = name, count = 0, rows = 0 }
+        byItem[itemID] = row
+      end
+      row.count = row.count + (itemCount or 0)
+      row.rows = row.rows + 1
+      row.lowestMinBid = consider(row.lowestMinBid, minBid)
+      row.lowestBid = consider(row.lowestBid, bidAmount)
+      row.lowestBuyout = consider(row.lowestBuyout, buyoutPrice)
+      if name and name ~= "" then
+        row.name = name
+      end
+    end
+  end
+
+  local rows = {}
+  for _, row in pairs(byItem) do
+    rows[#rows + 1] = {
+      itemID = row.itemID,
+      name = row.name,
+      listed = row.count,
+      auctions = row.rows,
+      lowestMinBid = row.lowestMinBid,
+      lowestBid = row.lowestBid,
+      lowestBuyout = row.lowestBuyout,
+    }
+  end
+
+  table.sort(rows, function(left, right)
+    return left.itemID < right.itemID
+  end)
+  return rows
+end
+
+local function remember(rows)
+  local db = database()
+  db.scans[#db.scans + 1] = {
+    at = C_DateAndTime.GetServerTimeLocal(),
+    rows = rows,
+  }
+  return #db.scans
+end
+
+local frame = CreateFrame("Frame")
+frame:RegisterEvent("ADDON_LOADED")
+frame:RegisterEvent("AUCTION_HOUSE_SHOW")
+frame:RegisterEvent("REPLICATE_ITEM_LIST_UPDATE")
+
+frame:SetScript("OnEvent", function(self, event, name)
+  if event == "ADDON_LOADED" then
+    if name == ADDON_NAME then
+      database()
+    end
+    return
+  end
+
+  if event == "AUCTION_HOUSE_SHOW" then
+    -- The client says: This function should be used in place of an
+    -- 'allItem' QueryAuctionItems call to query the entire auction house.
+    C_AuctionHouse.ReplicateItems()
+    return
+  end
+
+  if event == "REPLICATE_ITEM_LIST_UPDATE" then
+    local saved = remember(readReplicateList())
+    print("Price Log saved scan " .. saved .. ". Reload or log out to write the file.")
+  end
+end)
+
+SLASH_PRICELOG1 = "/pricelog"
+SlashCmdList.PRICELOG = function()
+  local db = database()
+  print("Price Log is holding " .. #db.scans .. " scans in memory.")
+end
+----
+
+== What you do in game
+
+. Enable Price Log and `/reload` once so the TOC is picked up.
+. Open the auction house. The show handler calls `ReplicateItems`.
+. When `REPLICATE_ITEM_LIST_UPDATE` fires, the addon folds the list into one row per `itemID` and appends a scan.
+. `/reload` or log out.
+
+The client writes:
+
+[source,text,subs="+attributes"]
+----
+{client-folder}/WTF/Account/<Account>/SavedVariables/PriceLog.lua
+----
+
+Open that file in an editor.
+Each entry of `PriceLogDB.scans` is one visit.
+`at` is `serverTimeLocal` from `C_DateAndTime.GetServerTimeLocal`.
+`lowestBid` is the smallest `bidAmount` that was greater than zero.
+`lowestMinBid` is the smallest `minBid`.
+`lowestBuyout` is the smallest `buyoutPrice`.
+A missing key means every row for that item had no usable amount in that field.
+
+== One item on top of the log
+
+The full scan is the log.
+A single item still uses the search API, and the client limits those calls.
+This command searches one item id and prints the three lows.
+It does not write a second file.
+
+[source,lua]
+----
+local pending = {}
+
+local function searchItem(itemID)
+  if not C_AuctionHouse.IsThrottledMessageSystemReady() then
+    print("Price Log search is throttled.")
+    return
+  end
+  local itemKey = C_AuctionHouse.MakeItemKey(itemID, 0, 0, 0)
+  pending[itemID] = itemKey
+  C_AuctionHouse.SendSearchQuery(itemKey, {
+    { sortOrder = Enum.AuctionHouseSortOrder.Buyout, reverseSort = false },
+  }, false, 0, 0)
+end
+
+local searchFrame = CreateFrame("Frame")
+searchFrame:RegisterEvent("ITEM_SEARCH_RESULTS_UPDATED")
+searchFrame:RegisterEvent("ITEM_SEARCH_RESULTS_ADDED")
+searchFrame:SetScript("OnEvent", function(self, event, itemKey)
+  local itemID = itemKey and itemKey.itemID
+  if not itemID or pending[itemID] == nil then
+    return
+  end
+  local hasFull = C_AuctionHouse.HasFullItemSearchResults(itemKey)
+  if not hasFull then
+    hasFull = C_AuctionHouse.RequestMoreItemSearchResults(itemKey)
+  end
+  if not hasFull then
+    return
+  end
+  pending[itemID] = nil
+
+  local count = C_AuctionHouse.GetNumItemSearchResults(itemKey)
+  local lowestBid, lowestBuyout
+  for index = 1, count do
+    local row = C_AuctionHouse.GetItemSearchResultInfo(itemKey, index)
+    if row then
+      lowestBid = consider(lowestBid, row.bidAmount)
+      lowestBuyout = consider(lowestBuyout, row.buyoutAmount)
+    end
+  end
+
+  local function coin(copper)
+    return copper and C_CurrencyInfo.GetCoinText(copper) or "none"
+  end
+  print(string.format("item %d bid %s buyout %s", itemID, coin(lowestBid), coin(lowestBuyout)))
+end)
+----
+
+Put that next to the first frame in `PriceLog.lua`.
+`consider` is the helper from the scan.
+Then:
+
+[source,text]
+----
+/pricelog 2589
+----
+
+needs a small change to the slash handler so a number becomes a search:
+
+[source,lua]
+----
+SlashCmdList.PRICELOG = function(message)
+  local itemID = tonumber(message)
+  if itemID then
+    searchItem(itemID)
+    return
+  end
+  local db = database()
+  print("Price Log is holding " .. #db.scans .. " scans in memory.")
+end
+----
+
+2589 is only an example item id.
+The search uses whatever number you pass.
+
+The client text on `SendSearchQuery` still applies: 100 calls a minute, and this is not the call that reads the whole house.
+The whole house stays on `ReplicateItems`.

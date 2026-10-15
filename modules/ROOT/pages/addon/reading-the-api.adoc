@@ -1,0 +1,100 @@
+= Reading a call in Libram
+
+The API browser lists the calls in one client build.
+A call the client described is in the main list.
+A call the client never described stays hidden until you turn on *Show unknown*.
+
+On a call page:
+
+* The signature is the arguments and returns in this build.
+* A paragraph marked "Quoted from the World of Warcraft client" is the client's text.
+* The example panel is a possible call. Its comment quotes the client when the client wrote a sentence. Ingesting a newer build does not replace that file.
+
+A namespace call is a dot call.
+
+[source,lua]
+----
+C_AuctionHouse.ReplicateItems()
+----
+
+An object call is a colon call on a value of that object type.
+
+[source,lua]
+----
+object:AddBreakpoint(breakpoint)
+----
+
+== Types that matter for prices
+
+[cols="1,2"]
+|===
+|Type in the export |How an addon uses it
+
+|`number`
+|a Lua number
+
+|`luaIndex`
+|an index the search-result getters take; the loops here start at 1
+
+|`bool`
+|`true` or `false`
+
+|`string` / `cstring`
+|a Lua string
+
+|`BigUInteger`, `WOWMONEY`
+|a copper count
+
+|`ItemKey`
+|a table with `itemID`, `itemLevel`, `itemSuffix`, `battlePetSpeciesID`
+
+|`table`
+|a Lua table; the inner type on the field says what the entries are when the export recorded it
+|===
+
+`MakeItemKey(itemID, itemLevel, itemSuffix, battlePetSpeciesID)` returns an `ItemKey`.
+All four arguments are required in this build.
+A plain item uses zeros for the last three.
+
+[source,lua]
+----
+local itemKey = C_AuctionHouse.MakeItemKey(2589, 0, 0, 0)
+----
+
+2589 is an item id used as a stand-in in these examples.
+Swap it for the item you are pricing.
+
+== Client sentences used later
+
+These are the descriptions the export wrote.
+The auction chapters quote them at the call site.
+
+`C_AuctionHouse.ReplicateItems`:
+
+[quote]
+____
+This function should be used in place of an 'allItem' QueryAuctionItems call to query the entire auction house.
+____
+
+`C_AuctionHouse.SendSearchQuery` and `C_AuctionHouse.SendSellSearchQuery`:
+
+[quote]
+____
+Search queries are restricted to 100 calls per minute. These should not be used to query the entire auction house. See ReplicateItems.
+____
+
+`SendSellSearchQuery` adds: ItemKey should have its iLVL and suffix cleared before calling.
+
+`AUCTION_HOUSE_AUCTION_CREATED`:
+
+[quote]
+____
+This signal is not used in the base UI but is included for AddOn ease-of-use.
+____
+
+`AUCTION_HOUSE_NEW_RESULTS_RECEIVED`:
+
+[quote]
+____
+This signal is not used in the base UI but is included for AddOn ease-of-use. Payload is nil for browse queries.
+____

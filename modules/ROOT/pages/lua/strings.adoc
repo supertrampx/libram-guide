@@ -1,0 +1,97 @@
+= Strings, numbers, and patterns
+
+`..` joins strings.
+A number is joined when Lua can read it as a numeral.
+`#name` is the length in bytes, which for the ASCII names in an auction row is the length in characters.
+
+[source,lua]
+----
+local line = "item " .. tostring(itemID)
+local n = tonumber("12")
+local whole = math.floor(price / 10000)
+local text = string.format("%d x %s", count, name or "?")
+----
+
+`string.format` follows the usual `printf` conversions: `%d` for a whole number, `%s` for a string, `%q` for a quoted Lua string, `%%` for a percent sign.
+
+== Money as copper
+
+Price fields in this build are copper counts.
+The type names are `BigUInteger` and `WOWMONEY`.
+One gold is 10000 copper.
+One silver is 100 copper.
+
+[source,lua]
+----
+local function formatCopper(copper)
+  copper = copper or 0
+  local gold = math.floor(copper / 10000)
+  local silver = math.floor((copper % 10000) / 100)
+  local rest = copper % 100
+  return string.format("%dg %ds %dc", gold, silver, rest)
+end
+----
+
+The client also formats money.
+`C_CurrencyInfo.GetCoinText(amount)` takes a `WOWMONEY` amount and returns a string.
+The separator defaults to `", "`.
+
+[source,lua]
+----
+local text = C_CurrencyInfo.GetCoinText(buyoutPrice)
+----
+
+== Patterns
+
+Lua patterns are not regular expressions.
+The character classes are shorter, and `%` is the escape.
+
+[cols="1,2"]
+|===
+|Pattern |Matches
+
+|`.`
+|any byte
+
+|`%d`
+|a digit
+
+|`%a`
+|a letter
+
+|`%s`
+|a space
+
+|`%w`
+|a letter or digit
+
+|`+`
+|one or more of the previous
+
+|`*`
+|zero or more
+
+|`-`
+|the shortest run
+
+|`()`
+|a capture
+|===
+
+[source,lua]
+----
+local itemID = string.match(link or "", "item:(%d+)")
+itemID = tonumber(itemID)
+----
+
+`string.match` returns the captures, or the whole match when there are no captures.
+`string.find` returns the start and end indexes, then the captures.
+`string.gsub` replaces.
+
+[source,lua]
+----
+local plain = string.gsub(name or "", "^%s+", "")
+----
+
+A pattern that came from a player, or from an item name, should pass through `string.gsub(text, "([%%%^%$%(%)%.%[%]%*%+%-%?])", "%%%1")` before it is used as a pattern.
+Otherwise a parenthesis in the name is a pattern, not a character.

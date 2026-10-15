@@ -1,0 +1,146 @@
+= Prices and lowest bids
+
+A single item uses `SendSearchQuery`.
+The client says search queries are limited to 100 calls a minute and must not be used for the entire house.
+
+Check the throttle first.
+`IsThrottledMessageSystemReady` returns `canSendThrottledMessage`.
+
+[source,lua]
+----
+local function searchItem(itemID)
+  if not C_AuctionHouse.IsThrottledMessageSystemReady() then
+    return false
+  end
+  local itemKey = C_AuctionHouse.MakeItemKey(itemID, 0, 0, 0)
+  local sorts = {
+    { sortOrder = Enum.AuctionHouseSortOrder.Buyout, reverseSort = false },
+  }
+  C_AuctionHouse.SendSearchQuery(itemKey, sorts, false, 0, 0)
+  return true
+end
+----
+
+`AuctionHouseSortOrder.Buyout` is 4 in this build.
+`reverseSort` false asks for the forward order of that sort.
+`separateOwnerItems` is false.
+The level filters are 0 and 0, which this call takes as `minLevelFilter` and `maxLevelFilter`.
+
+`Enum.AuctionHouseSortOrder` is how this client exposes that enumeration to Lua.
+
+== Lowest bid and lowest buyout
+
+Wait for `ITEM_SEARCH_RESULTS_UPDATED`.
+The payload is the `itemKey` you searched, then `newAuctionID`.
+`GetItemSearchResultInfo` takes a `luaIndex`, so the loop starts at 1 and stops at `GetNumItemSearchResults`.
+
+[source,lua]
+----
+local function lowestPrices(itemKey)
+  local count = C_AuctionHouse.GetNumItemSearchResults(itemKey)
+  local lowestBid
+  local lowestMinBid
+  local lowestBuyout
+
+  for index = 1, count do
+    local row = C_AuctionHouse.GetItemSearchResultInfo(itemKey, index)
+    if row then
+      if row.bidAmount and row.bidAmount > 0 and (not lowestBid or row.bidAmount < lowestBid) then
+        lowestBid = row.bidAmount
+      end
+      if row.minBid and row.minBid > 0 and (not lowestMinBid or row.minBid < lowestMinBid) then
+        lowestMinBid = row.minBid
+      end
+      if row.buyoutAmount and row.buyoutAmount > 0 and (not lowestBuyout or row.buyoutAmount < lowestBuyout) then
+        lowestBuyout = row.buyoutAmount
+      end
+    end
+  end
+
+  return lowestBid, lowestMinBid, lowestBuyout
+end
+----
+
+`bidAmount` is the current bid on that row.
+`minBid` is the minimum bid field on that row.
+`buyoutAmount` is the buyout.
+A zero is treated as "no price" so an empty buyout does not become the lowest price.
+
+One row, when you already have an `auctionID`:
+
+[source,lua]
+----
+local priceInfo = C_AuctionHouse.GetAuctionInfoByID(auctionID)
+if priceInfo then
+  local currentBid = priceInfo.bidAmount
+  local minimumBid = priceInfo.minBid
+  local buyout = priceInfo.buyoutAmount
+end
+----
+
+`GetAuctionInfoByID` returns `priceInfo` as `AuctionInfo`, and the return is nilable.
+The `if` is the nil check.
+
+Print a copper amount with the client's formatter:
+
+[source,lua]
+----
+local function say(label, copper)
+  if not copper then
+    print(label .. ": none")
+    return
+  end
+  print(label .. ": " .. C_CurrencyInfo.GetCoinText(copper))
+end
+----
+
+== Commodities
+
+Commodity rows use `unitPrice` and `quantity`.
+The updated event carries `itemID`.
+
+[source,lua]
+----
+local function lowestCommodity(itemID)
+  local count = C_AuctionHouse.GetNumCommoditySearchResults(itemID)
+  local lowest
+  local quantity
+
+  for index = 1, count do
+    local row = C_AuctionHouse.GetCommoditySearchResultInfo(itemID, index)
+    if row and row.unitPrice and row.unitPrice > 0 and (not lowest or row.unitPrice < lowest) then
+      lowest = row.unitPrice
+      quantity = row.quantity
+    end
+  end
+
+  return lowest, quantity
+end
+----
+
+`GetMaxCommoditySearchResultPrice(itemID)` returns `maxUnitPrice`.
+Use it when you want the high end the client already computed.
+The loop above is the low end.
+
+`HasFullCommoditySearchResults(itemID)` returns `hasFullResults`.
+When that is false, `RequestMoreCommoditySearchResults(itemID)` asks for another page and returns `hasFullResults`.
+The same pair exists for items: `HasFullItemSearchResults` and `RequestMoreItemSearchResults`.
+Read the lowest price after `hasFullResults` is true if you need every page, not only the first.
+
+== Sell search
+
+`SendSellSearchQuery` is the search from the sell side.
+The client says the same 100-calls-a-minute limit applies, and:
+
+[quote]
+____
+ItemKey should have its iLVL and suffix cleared before calling.
+____
+
+[source,lua]
+----
+local itemKey = C_AuctionHouse.MakeItemKey(itemID, 0, 0, 0)
+C_AuctionHouse.SendSellSearchQuery(itemKey, sorts, false)
+----
+
+The third argument is `separateOwnerItems`.

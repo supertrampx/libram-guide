@@ -1,0 +1,67 @@
+= Query the whole house
+
+A full query is `ReplicateItems`.
+The client says to use it in place of an all-item `QueryAuctionItems` call.
+`SendSearchQuery` is the wrong tool for the whole house.
+The client limits search queries to 100 calls a minute and points that case at `ReplicateItems`.
+
+Open the auction house in game, then let the addon ask for the list.
+This frame only queries.
+The xref:auction/price-log.adoc[price log] stores the rows.
+
+[source,lua]
+----
+local frame = CreateFrame("Frame")
+frame:RegisterEvent("AUCTION_HOUSE_SHOW")
+frame:RegisterEvent("REPLICATE_ITEM_LIST_UPDATE")
+
+frame:SetScript("OnEvent", function(self, event)
+  if event == "AUCTION_HOUSE_SHOW" then
+    C_AuctionHouse.ReplicateItems()
+    return
+  end
+
+  if event ~= "REPLICATE_ITEM_LIST_UPDATE" then
+    return
+  end
+
+  local count = C_AuctionHouse.GetNumReplicateItems()
+  for index = 0, count - 1 do
+    local name, _, itemCount, _, _, _, _,
+      minBid, _, buyoutPrice, bidAmount,
+      _, _, owner, _, _, itemID, hasAllInfo =
+      C_AuctionHouse.GetReplicateItemInfo(index)
+
+    if itemID and itemID ~= 0 and hasAllInfo ~= false then
+      -- name, itemCount, minBid, bidAmount, buyoutPrice, owner
+    end
+  end
+end)
+----
+
+`index` starts at 0 because `GetReplicateItemInfo` types that argument as `number`.
+The search loops in the next chapter start at 1 because those arguments are `luaIndex`.
+
+`hasAllInfo` is the last return.
+A row can arrive before every field is filled.
+The scan skips a row when `hasAllInfo` is `false`.
+When the client sends `REPLICATE_ITEM_LIST_UPDATE` again, the loop reads the list again.
+
+Prices are copper.
+`buyoutPrice` of `0` means that row has no buyout in the value this function returned.
+Keep the zero if you want to remember that.
+Skip it when you are looking for a price to pay.
+
+[source,lua]
+----
+local function payable(copper)
+  return type(copper) == "number" and copper > 0
+end
+----
+
+`GetReplicateItemLink(index)` is a separate call when you want the link string for the same index.
+`GetReplicateItemTimeLeft(index)` returns `timeLeft` for that index.
+
+Do not call `SendSearchQuery` inside this loop.
+One `ReplicateItems` is the full query.
+A search per row would hit the 100-calls-a-minute limit the client wrote on `SendSearchQuery`.

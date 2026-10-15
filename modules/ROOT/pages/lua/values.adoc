@@ -1,0 +1,77 @@
+= Values and names
+
+Lua 5.1 has six value kinds: `nil`, boolean, number, string, table, and function.
+There is one number type, a floating-point value.
+There is no separate integer type, and there is no `//` division.
+
+[source,lua]
+----
+local count = 3
+local price = 4500
+local name = "Linen Cloth"
+local ready = true
+local missing = nil
+----
+
+`nil` is the absence of a value.
+A missing argument arrives as `nil`.
+A missing table field is `nil`.
+Comparing with `nil` is how an addon tells those apart from `false`.
+
+== local
+
+A name set with `local` belongs to that block.
+A write without `local` lands in the global environment.
+Another addon can read it and can overwrite it.
+
+[source,lua]
+----
+local rows = {}          -- this file
+PriceLogDB = PriceLogDB or { scans = {} }  -- a saved global, on purpose
+----
+
+The saved-variable global is the one case where a global is the point.
+Everything else in an addon file should be `local`.
+
+== Comparison and logic
+
+Equality is `==` and `~=`.
+Order is `<`, `>`, `<=`, `>=`.
+Logic is `and`, `or`, and `not`.
+There is no `!`, `&&`, or `||`.
+
+`and` and `or` return one of the two values, not always a boolean.
+That is useful for a default:
+
+[source,lua]
+----
+local separator = separator or ", "
+local label = name or "(no name)"
+----
+
+`or` stops at the first value that is neither `nil` nor `false`.
+A price of `0` is a real copper amount, so `price or 0` does not replace a zero.
+Use an explicit `nil` test when zero is meaningful:
+
+[source,lua]
+----
+if buyoutPrice ~= nil and buyoutPrice > 0 then
+  -- this row has a buyout
+end
+----
+
+== Multiple assignment
+
+One statement can bind several names.
+Extra values are dropped.
+Missing values become `nil`.
+
+[source,lua]
+----
+local gold, silver = 12, 34
+local only = 1, 2        -- only is 1; the 2 is discarded
+local a, b = 1           -- b is nil
+----
+
+API calls use this.
+`C_AuctionHouse.GetReplicateItemInfo` returns many values, and the names on the left are the names from this build.

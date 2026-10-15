@@ -1,0 +1,19 @@
+* xref:index.adoc[Overview]
+* Lua 5.1
+** xref:lua/manual.adoc[The Lua 5.1 manual]
+** xref:lua/values.adoc[Values and names]
+** xref:lua/tables.adoc[Tables]
+** xref:lua/functions.adoc[Functions and methods]
+** xref:lua/control.adoc[Control flow]
+** xref:lua/strings.adoc[Strings, numbers, and patterns]
+** xref:lua/environment.adoc[What this client changes]
+* Writing an addon
+** xref:addon/layout.adoc[Addon files]
+** xref:addon/events.adoc[Frames and events]
+** xref:addon/saved-variables.adoc[Saved variables]
+** xref:addon/reading-the-api.adoc[Reading a call in Libram]
+* Auction house
+** xref:auction/overview.adoc[The auction API in this build]
+** xref:auction/scan.adoc[Query the whole house]
+** xref:auction/prices.adoc[Prices and lowest bids]
+** xref:auction/price-log.adoc[Save prices to the log]

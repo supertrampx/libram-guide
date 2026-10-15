@@ -1,0 +1,4 @@
+The HTML files in this folder are the Lua 5.1 reference manual and the Lua license.
+They are published by Lua.org, PUC-Rio, and are freely available under the Lua license.
+Source: https://www.lua.org/manual/5.1/
+License: https://www.lua.org/license.html

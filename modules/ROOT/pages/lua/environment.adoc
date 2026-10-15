@@ -1,0 +1,50 @@
+= What this client changes
+
+The addon environment is Lua 5.1 with a WoW standard library, not the standalone Lua interpreter.
+
+== Present
+
+`string`, `table`, `math`, `coroutine`, and the base functions (`pairs`, `ipairs`, `pcall`, `type`, `tostring`, `tonumber`, `select`, `unpack`) are present.
+
+`os.time` and `os.date` are present.
+This build also publishes `C_DateAndTime.GetServerTimeLocal()`, which returns `serverTimeLocal` as a `time_t`.
+The price log uses that call so the timestamp is a function from this export.
+
+The client provides `bit.band`, `bit.bor`, `bit.bxor`, `bit.lshift`, `bit.rshift`, and `bit.bnot`.
+Lua 5.1 has no `&` or `|` operators.
+
+[source,lua]
+----
+local masked = bit.band(flags, 0x4)
+----
+
+`CreateFrame`, `frame:RegisterEvent`, and `frame:SetScript` are the frame environment.
+They are how an addon receives events.
+They are not `C_*` calls in the API export.
+
+== Absent
+
+`io` is not available.
+An addon cannot `io.open` a log file.
+The log in xref:addon/saved-variables.adoc[Saved variables] is a global table.
+The client writes that table to `SavedVariables/<Addon>.lua` on logout or `/reload`.
+That file is the log.
+
+`os.execute`, `os.remove`, and `os.rename` are not available.
+`debug` is not an addon library.
+`require` and `package` are not the module system of an addon.
+Each addon file is loaded by the client from the TOC.
+
+== Language that is not this language
+
+Do not write these.
+They belong to later Lua.
+
+* `goto` and labels
+* `//` integer division
+* `&`, `|`, `~`, `<<`, `>>`
+* `<const>` and `<close>`
+* a separate integer type
+* `continue`
+
+Integer division of copper is `math.floor(copper / 10000)`.

@@ -1,0 +1,85 @@
+= Tables
+
+A table is the data structure.
+Lists, records, and sets are all tables.
+
+A list starts at index 1.
+
+[source,lua]
+----
+local slots = { "head", "shoulders" }
+local first = slots[1]
+slots[#slots + 1] = "chest"
+----
+
+`#slots` is the length of a sequence with no holes.
+A `nil` in the middle ends that length.
+Store a missing price as a missing row, or as `false`, rather than punching a hole in a list you will measure with `#`.
+
+== Records
+
+A record uses named fields.
+
+[source,lua]
+----
+local row = {
+  itemID = 2589,
+  name = "Linen Cloth",
+  count = 20,
+  buyoutPrice = 5000,
+}
+local cost = row.buyoutPrice
+row.count = row.count + 1
+----
+
+`row.buyoutPrice` and `row["buyoutPrice"]` are the same field.
+Use the dot when the name is a fixed identifier.
+Use the brackets when the name is in a variable.
+
+== Walking a table
+
+`ipairs` walks a list from 1 until the first `nil`.
+`pairs` walks every key, in an unspecified order.
+
+[source,lua]
+----
+for index, row in ipairs(rows) do
+  print(index, row.itemID, row.buyoutPrice)
+end
+
+for key, value in pairs(record) do
+  print(key, value)
+end
+----
+
+A numeric loop is the right tool when the API, not a Lua table, owns the indexes.
+Search-result getters in this build take a `luaIndex`, and the loops in the auction chapters run from 1 through the count from the matching `GetNum` call.
+`GetReplicateItemInfo` takes a `number`, and that loop starts at 0.
+
+== Building a list of prices
+
+[source,lua]
+----
+local function cheaper(rows, price)
+  local found = {}
+  for _, row in ipairs(rows) do
+    if row.buyoutPrice and row.buyoutPrice > 0 and row.buyoutPrice <= price then
+      found[#found + 1] = row
+    end
+  end
+  return found
+end
+----
+
+`table.sort` sorts a list in place.
+The comparison returns true when the first argument should come first.
+
+[source,lua]
+----
+table.sort(rows, function(left, right)
+  return (left.buyoutPrice or 0) < (right.buyoutPrice or 0)
+end)
+----
+
+`table.insert(list, value)` appends.
+`table.remove(list, index)` removes one entry and closes the gap.

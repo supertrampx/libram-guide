@@ -1,0 +1,99 @@
+= Functions and methods
+
+A function is a value.
+`local function` names it in that block.
+
+[source,lua]
+----
+local function copperToGold(copper)
+  return copper / 10000
+end
+
+local gold = copperToGold(4500)
+----
+
+Several returns come back together.
+
+[source,lua]
+----
+local function splitMoney(copper)
+  local gold = math.floor(copper / 10000)
+  local silver = math.floor((copper % 10000) / 100)
+  local remainder = copper % 100
+  return gold, silver, remainder
+end
+
+local gold, silver, remainder = splitMoney(12345)
+----
+
+== Arguments
+
+Missing arguments are `nil`.
+Extra arguments are ignored.
+A trailing `...` collects the extras into the vararg expression.
+
+[source,lua]
+----
+local function firstOf(...)
+  local values = { ... }
+  return values[1], #values
+end
+----
+
+An event handler uses this.
+The frame and the event name are the first two arguments.
+The rest are the payload listed for that event in this build.
+
+== Methods
+
+A colon call passes the value on the left as `self`.
+A dot call does not.
+
+[source,lua]
+----
+object:AddBreakpoint(breakpoint)
+-- the same call is object.AddBreakpoint(object, breakpoint)
+----
+
+Libram writes a dot when the client published a namespace, and a colon when the call belongs to an object.
+
+[source,lua]
+----
+C_AuctionHouse.ReplicateItems()
+object:SetToDefaults()
+----
+
+`C_AuctionHouse` is a namespace table.
+`ReplicateItems` is a function in that table.
+There is no `self`.
+
+== Closures
+
+An inner function keeps the locals of the function that created it.
+That is how a click handler remembers the item it was built for.
+
+[source,lua]
+----
+local function watch(itemID)
+  return function()
+    return itemID
+  end
+end
+
+local current = watch(2589)
+print(current())
+----
+
+== Functions as arguments
+
+`table.sort`, `string.gsub`, and `pcall` take functions.
+An addon passes a function the same way.
+
+[source,lua]
+----
+local function byBuyout(left, right)
+  return left.buyoutPrice < right.buyoutPrice
+end
+
+table.sort(rows, byBuyout)
+----
