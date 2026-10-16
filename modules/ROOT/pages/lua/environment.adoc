@@ -13,6 +13,13 @@ The price log uses that call so the timestamp is a function from this export.
 The client provides `bit.band`, `bit.bor`, `bit.bxor`, `bit.lshift`, `bit.rshift`, and `bit.bnot`.
 Lua 5.1 has no `&` or `|` operators.
 
+Calls an addon meets before it meets a system namespace:
+
+* `GetBuildInfo()` returns `buildVersion`, `buildNumber`, `buildDate`, `interfaceVersion`, `localizedVersion`, and `buildInfo`. The TOC `## Interface` number is `interfaceVersion`.
+* `GetLocale()` returns the client locale name, such as `enUS`.
+* `Mixin(object, mixin)` copies the mixin fields onto `object` and returns it. `CreateFromMixins(mixin)` builds a new table the same way.
+* `C_Timer.After(seconds, callback)` runs a function later. See xref:addon/timers.adoc[Timers].
+
 [source,lua]
 ----
 local masked = bit.band(flags, 0x4)

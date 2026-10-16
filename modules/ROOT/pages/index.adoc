@@ -4,22 +4,12 @@ World of Warcraft runs addon code in *Lua 5.1*.
 That has been the language of the addon environment for the life of the game, and it is the language of this Classic client.
 A script written for a later Lua, with `goto`, the `//` operator, bitwise operators, or `<const>`, is a different language.
 
-This site is the addon manual for that language and for the API in the current Libram snapshot, {display-name} {build-version}, interface {interface}.
-The language reference itself is the xref:lua/manual.adoc[Lua 5.1 manual].
-Libram keeps a copy of that manual so the reference stays next to the guide.
-
-The API browser is the signature list for this build.
-Sentences marked as the client are quoted from that export.
-The addon scripts in the auction chapters are examples written for this guide.
-They are not scripts shipped by Blizzard.
-
-The version listed under Addon guide is this component version.
-Its name, interface number, and client folder come from `antora.yml` on the branch that published it.
-A later client line is another branch, with its own `antora.yml`, and it shows up in that menu.
+This guide is that language on {display-name} {build-version}, interface {interface}, plus the calls in the API browser for this snapshot.
+The language reference is the xref:lua/manual.adoc[Lua 5.1 manual].
 
 == What to read
 
-. xref:lua/manual.adoc[Lua 5.1] through xref:lua/environment.adoc[what the client changes]. This is the language an addon is allowed to use.
-. xref:addon/layout.adoc[Addon files], xref:addon/events.adoc[events], and xref:addon/saved-variables.adoc[saved variables]. A saved variable is how an addon keeps a log. The client writes that log to disk on logout or `/reload`.
-. The xref:auction/overview.adoc[auction house] chapters. They query the house, read prices and bids, and save a snapshot with the calls this build actually publishes.
-. The xref:examples/index.adoc[examples]. Four short addons string bag, quest, party-chat, and map calls from this snapshot, and each page says what the script is doing.
+. xref:lua/manual.adoc[Lua 5.1] through xref:lua/environment.adoc[what this client changes].
+. xref:addon/first.adoc[A first addon], then xref:addon/layout.adoc[the files], xref:addon/loading.adoc[when they run], xref:addon/events.adoc[events], xref:addon/widgets.adoc[a frame on screen], and xref:addon/saved-variables.adoc[saved variables].
+. The xref:auction/overview.adoc[auction house] chapters. They query the house, read prices and bids, and save a snapshot with the calls this build publishes.
+. The xref:examples/index.adoc[examples]. Four short addons string bag, quest, party-chat, and map calls from this snapshot.

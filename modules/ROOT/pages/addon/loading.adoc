@@ -1,0 +1,84 @@
+= When it loads
+
+The client loads an enabled addon in a fixed order.
+Code that runs at the top of a file is too early to read a saved table, and often too early to ask the player's name.
+
+== Order
+
+. The client reads the TOC and runs each listed file, top to bottom, as one chunk.
+. It restores the globals named by `## SavedVariables` and `## SavedVariablesPerCharacter`.
+. It fires `ADDON_LOADED`.
+. When the enabled addons are in, it fires `PLAYER_LOGIN`.
+. It fires `PLAYER_ENTERING_WORLD` as you enter the world, and again on `/reload`.
+. On the way out, `PLAYER_LOGOUT` fires, and the client writes the saved globals.
+
+A file-scope line such as `HelloDB = HelloDB or {}` runs in step 1, while `HelloDB` is still `nil`.
+The table you create there is replaced when step 2 assigns the saved global.
+Read and fill the saved table in the `ADDON_LOADED` handler, after the addon name matches.
+
+== ADDON_LOADED
+
+The literal name is `ADDON_LOADED`.
+The payload is `addOnName`, then `containsBindings`.
+
+[source,lua]
+----
+frame:RegisterEvent("ADDON_LOADED")
+frame:SetScript("OnEvent", function(self, event, addOnName)
+  if event ~= "ADDON_LOADED" or addOnName ~= ADDON_NAME then
+    return
+  end
+  HelloDB = HelloDB or { loads = 0 }
+end)
+----
+
+`containsBindings` is there when you name a second parameter.
+Most addons only need `addOnName`.
+
+`C_AddOns.IsAddOnLoaded(name)` returns `loadedOrLoading` and `loaded` if you need to ask about another addon instead of waiting for its event.
+
+== PLAYER_LOGIN
+
+`PLAYER_LOGIN` has no payload.
+The player exists.
+`UnitName("player")`, money, and the spellbook are meaningful here.
+A greeting belongs in this handler, not at the top of the file.
+
+== PLAYER_ENTERING_WORLD
+
+The payload is `isInitialLogin` and `isReloadingUi`.
+
+[source,lua]
+----
+frame:RegisterEvent("PLAYER_ENTERING_WORLD")
+frame:SetScript("OnEvent", function(self, event, isInitialLogin, isReloadingUi)
+  if event ~= "PLAYER_ENTERING_WORLD" then
+    return
+  end
+  if isInitialLogin then
+    -- a fresh login
+  elseif isReloadingUi then
+    -- /reload
+  end
+end)
+----
+
+Zoning also enters the world.
+Check the two flags before you treat every firing as a new session.
+
+== PLAYER_LOGOUT
+
+`PLAYER_LOGOUT` has no payload.
+It is the last chance to finish a change you want in the saved file.
+The client writes that file on logout and on `/reload`.
+
+== Two events that are not your save
+
+`VARIABLES_LOADED` has no payload.
+It is not the signal that `HelloDB` is ready.
+Wait for `ADDON_LOADED`.
+
+`SAVED_VARIABLES_TOO_LARGE` carries `addOnName`.
+It fires when that addon's saved table is too big to keep.
+A price log that appends forever will meet it.
+Keep a bound on the table, or store less on each row.

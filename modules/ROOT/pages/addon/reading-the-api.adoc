@@ -8,7 +8,11 @@ On a call page:
 
 * The signature is the arguments and returns in this build.
 * A paragraph marked "Quoted from the World of Warcraft client" is the client's text.
-* The example panel is a possible call. Its comment quotes the client when the client wrote a sentence. Ingesting a newer build does not replace that file.
+* The example panel is a possible call. Its comment quotes the client when the client wrote a sentence.
+
+An event page leads with the literal name, the string you pass to `RegisterEvent`.
+`AuctionHouseShow` is the page.
+`AUCTION_HOUSE_SHOW` is the string.
 
 A namespace call is a dot call.
 

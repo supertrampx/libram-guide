@@ -1,0 +1,65 @@
+= A frame on screen
+
+`CreateFrame` builds the UI an addon shows.
+The auction scripts in this guide use a frame only as an event listener.
+A frame can also be a window.
+
+[source,lua]
+----
+local panel = CreateFrame("Frame", nil, UIParent)
+panel:SetSize(220, 48)
+panel:SetPoint("CENTER", UIParent, "CENTER", 0, 120)
+panel:Hide()
+
+local label = panel:CreateFontString(nil, "OVERLAY")
+label:SetPoint("CENTER", panel, "CENTER", 0, 0)
+label:SetText("Hello")
+
+local button = CreateFrame("Button", nil, UIParent)
+button:SetSize(80, 22)
+button:SetPoint("TOP", panel, "BOTTOM", 0, -4)
+button:SetText("Greet")
+button:SetScript("OnClick", function()
+  panel:Show()
+  label:SetText("Hello, " .. UnitName("player"))
+end)
+----
+
+The button is parented to `UIParent`, so it stays on screen while the panel is hidden.
+
+`SetSize` takes a width and a height.
+`SetPoint` takes `point`, `relativeTo`, `relativePoint`, `offsetX`, and `offsetY`.
+`"CENTER"` is a frame point.
+`UIParent` is the screen.
+`CreateFontString` takes an optional name, a draw layer, and an optional template.
+`"OVERLAY"` draws above the frame's own art.
+`SetText` on a button and `SetText` on a font string both take the string to draw.
+
+`SetScript` takes a script name and a function.
+`OnClick` runs when the button is clicked.
+`OnEnter` and `OnLeave` run when the mouse moves over the frame and when it leaves.
+`OnUpdate` runs every frame and receives the elapsed time since the previous call.
+A clock, a delay, or a "try again in a second" belongs on xref:addon/timers.adoc[a timer], not in `OnUpdate`.
+
+`EnableMouse(true)` is how a plain frame starts receiving clicks.
+A button already does.
+
+== Color in the text
+
+`|c` starts a color, eight hex digits are alpha then red, green, and blue, and `|r` ends it.
+
+[source,lua]
+----
+label:SetText("|cffffd100Hello|r")
+----
+
+`|H` and `|h` wrap a link.
+The link from `C_Item.GetItemInfo` is ready to pass to `SetText`.
+xref:lua/strings.adoc[Strings, numbers, and patterns] shows how to read the item id back out of that link.
+
+== Protected frames
+
+Some of the default UI is protected.
+During combat, addon code cannot move, show, or click those frames.
+A frame you created, parented to `UIParent`, and never attached to a protected button, is yours to show and hide.
+The auction chapters do that: their frame only listens, and the results are read from `C_AuctionHouse`.

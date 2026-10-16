@@ -62,11 +62,46 @@ Dropping it from the signature shifts the later names.
 
 == When the handler runs
 
-The handler runs on the next dispatch of that event.
-It does not run because a function was called, unless that call is what causes the client to emit the event.
-The auction chapters pair each query with the event whose name matches the result list.
-The export names those events.
-It does not write a sentence that says "this event follows this call," except where a client sentence is quoted.
+The handler runs when the client fires that event.
+Calling `ReplicateItems` does not fill the list by itself.
+The list is ready on `REPLICATE_ITEM_LIST_UPDATE`.
+The auction chapters pair each query with the event named for that result.
+
+== Many events, one frame
+
+A table of handlers stays readable once a frame listens for more than two events.
+The key is the literal event name.
+
+[source,lua]
+----
+local ADDON_NAME = ...
+local handlers = {}
+
+function handlers.ADDON_LOADED(frame, addOnName)
+  if addOnName ~= ADDON_NAME then
+    return
+  end
+end
+
+function handlers.AUCTION_HOUSE_SHOW()
+  C_AuctionHouse.ReplicateItems()
+end
+
+function handlers.REPLICATE_ITEM_LIST_UPDATE()
+  -- read GetNumReplicateItems and GetReplicateItemInfo
+end
+
+local frame = CreateFrame("Frame")
+for eventName in pairs(handlers) do
+  frame:RegisterEvent(eventName)
+end
+frame:SetScript("OnEvent", function(self, event, ...)
+  handlers[event](self, ...)
+end)
+----
+
+The function stored under each name receives the frame, then the payload.
+`ADDON_LOADED` still passes `addOnName` as the first payload value.
 
 == Secure frames
 

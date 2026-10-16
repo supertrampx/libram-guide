@@ -1,0 +1,100 @@
+= A first addon
+
+Hello writes one line in chat when you enter the world, counts how many times it has loaded, and answers `/hello`.
+
+Create this folder in the `{client-folder}` client:
+
+[source,text]
+----
+Interface/AddOns/Hello/Hello.toc
+Interface/AddOns/Hello/Hello.lua
+----
+
+The folder name and the TOC name match.
+If they do not, the addon list never sees the addon.
+
+== Hello.toc
+
+[source,text,subs="+attributes"]
+----
+## Interface: {interface}
+## Title: Hello
+## Notes: A one-file greeting.
+## Author: You
+## Version: 1.0
+## SavedVariables: HelloDB
+
+Hello.lua
+----
+
+`## Interface` is the interface number this TOC was written for.
+`GetBuildInfo()` returns that number as `interfaceVersion`.
+For the snapshot this guide follows, the number is {interface}.
+`## SavedVariables` names the global the client keeps between sessions.
+`Hello.lua` is listed after the headers.
+The client runs listed files from top to bottom.
+
+== Hello.lua
+
+[source,lua]
+----
+local ADDON_NAME = ...
+
+local frame = CreateFrame("Frame")
+frame:RegisterEvent("ADDON_LOADED")
+frame:RegisterEvent("PLAYER_LOGIN")
+frame:SetScript("OnEvent", function(self, event, ...)
+  if event == "ADDON_LOADED" then
+    local addOnName = ...
+    if addOnName ~= ADDON_NAME then
+      return
+    end
+    HelloDB = HelloDB or { loads = 0 }
+    HelloDB.loads = HelloDB.loads + 1
+  elseif event == "PLAYER_LOGIN" then
+    local name = UnitName("player")
+    print("Hello, " .. name .. ". Loaded " .. HelloDB.loads .. " times.")
+  end
+end)
+
+SLASH_HELLO1 = "/hello"
+SlashCmdList.HELLO = function(message)
+  if message and message ~= "" then
+    print("Hello, " .. message .. ".")
+  else
+    print("Hello.")
+  end
+end
+----
+
+`...` at the top of the file is the addon name.
+That name is the folder name, `Hello`.
+
+`ADDON_LOADED` fires after the client has restored `HelloDB`.
+The first payload value is `addOnName`.
+The handler returns immediately when the name is some other addon, because every addon load fires the same event.
+The first time Hello loads, `HelloDB` is `nil`, so the handler creates the table.
+Later loads keep the saved table and add one to `loads`.
+A `/reload` loads the addon again, so it counts.
+
+`PLAYER_LOGIN` has no payload.
+`UnitName("player")` returns `unitName` and `unitServer`.
+The greeting uses the first return.
+
+`SLASH_HELLO1` is the command text.
+`SlashCmdList.HELLO` is the function.
+The token `HELLO` has to be the same in both.
+`SLASH_HELLO2` would add a second spelling of the same command.
+
+== Try it
+
+Enable Hello in the addon list and `/reload`.
+The greeting uses the character name and the load count.
+`/hello` and `/hello friend` answer in chat.
+
+A stopped script names the file and the line in the chat frame.
+Fix the line and `/reload`.
+The saved count is on disk after logout or `/reload`, in `WTF/Account/<Account>/SavedVariables/Hello.lua`.
+
+xref:addon/layout.adoc[Addon files] is the rest of the TOC.
+xref:addon/loading.adoc[When it loads] is why the count is written inside `ADDON_LOADED` and the greeting waits for `PLAYER_LOGIN`.

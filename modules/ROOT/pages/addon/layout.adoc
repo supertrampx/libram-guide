@@ -27,35 +27,48 @@ PriceLog.lua
 ----
 
 `## Interface` is the client the TOC was written for.
-`## SavedVariables` names the global the client saves.
+`## Title`, `## Notes`, `## Author`, and `## Version` are the lines the addon list shows.
+`C_AddOns.GetAddOnMetadata(name, variable)` reads any of those headers back, including an `## X-` line you add yourself.
+`## SavedVariables` names the global the client saves for the account.
+`## SavedVariablesPerCharacter` names one saved for the character.
+`## Dependencies` names an addon that must load first.
+`## OptionalDeps` names one that may.
+`## LoadOnDemand: 1` waits until something calls `C_AddOns.LoadAddOn`.
+`## DefaultState: disabled` leaves the addon off until the player enables it.
 The Lua file is listed after the headers, one file per line, in load order.
+`GetLocale()` returns the client locale name.
+A locale file listed in the TOC can hold the strings for that name.
 
 == The Lua file
 
 The client runs the file once, as a chunk, when the addon loads.
 Locals at the top of the file live for the whole session.
-The saved global is created if this is the first run.
+The saved global is not restored yet.
+Create it in `ADDON_LOADED`, which is xref:addon/loading.adoc[when the save is actually there].
 
 [source,lua]
 ----
 local ADDON_NAME = ...
 
-PriceLogDB = PriceLogDB or {
-  scans = {},
-}
-
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
 frame:SetScript("OnEvent", function(self, event, name)
-  if name ~= ADDON_NAME then
+  if event ~= "ADDON_LOADED" or name ~= ADDON_NAME then
     return
   end
+  PriceLogDB = PriceLogDB or { scans = {} }
   PriceLogDB.scans = PriceLogDB.scans or {}
 end)
 ----
 
 `...` in the main chunk is the addon name, then the addon table.
 The first value is the folder name.
+The client describes `C_AddOns.GetAddOnLocalTable` this way:
+
+[quote]
+____
+Returns the addon table (passed as the second argument of ... to files) for any addon that opts in through setting AllowAddOnTableAccess: 1
+____
 
 == Load order
 

@@ -83,3 +83,30 @@ end)
 
 `table.insert(list, value)` appends.
 `table.remove(list, index)` removes one entry and closes the gap.
+
+== A shared shape
+
+A metatable can supply fields a row does not store itself.
+`__index` is consulted when the field is missing.
+
+[source,lua]
+----
+local Row = {}
+Row.__index = Row
+
+function Row:copper()
+  return self.buyoutPrice or 0
+end
+
+local function newRow(itemID, buyoutPrice)
+  return setmetatable({ itemID = itemID, buyoutPrice = buyoutPrice }, Row)
+end
+
+local row = newRow(2589, 5000)
+print(row:copper())
+----
+
+`row:copper()` looks up `copper` on the row, misses, and finds it on `Row`.
+`Mixin` copies methods onto a table instead, so each object holds its own copy.
+Use a metatable when many rows should share one set of methods.
+The manual lists the other metamethods, including `__tostring` and arithmetic.

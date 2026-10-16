@@ -1,0 +1,53 @@
+= Timers
+
+`C_Timer` runs a function after a number of seconds.
+Use it when the next step has to wait.
+Use xref:addon/events.adoc[an event] when the client will tell you the step finished.
+
+== Once
+
+`C_Timer.After` takes `seconds` and a `callback`.
+
+[source,lua]
+----
+C_Timer.After(1, function()
+  print("one second later")
+end)
+----
+
+The callback is a function with no arguments.
+It runs on the main thread, like an event handler.
+Saved variables, frames, and API calls are available inside it.
+
+A search that comes back empty because the item is not cached yet is the usual reason to wait.
+`C_Item.GetItemInfo` may return nothing the first time you ask.
+Request the record, then read it again from the timer, or from `GET_ITEM_INFO_RECEIVED` if you registered for that event.
+The xref:examples/bags.adoc[bag census] uses the event.
+
+== Again
+
+`C_Timer.NewTicker` takes `seconds`, a `callback`, and an optional `iterations`.
+It returns `cbObject`.
+
+[source,lua]
+----
+local ticks = 0
+C_Timer.NewTicker(5, function()
+  ticks = ticks + 1
+  print("tick", ticks)
+end, 3)
+----
+
+The callback receives the ticker.
+Three iterations then stop.
+Omit `iterations` and the ticker keeps firing.
+
+`C_Timer.NewTimer` takes `seconds` and a `callback` and returns the same kind of object.
+`After` is the one-shot you want when you do not need the object back.
+
+== What not to timer
+
+Do not poll `C_AuctionHouse` on a ticker to discover that a query finished.
+The result events in this build are the signal: `REPLICATE_ITEM_LIST_UPDATE`, `ITEM_SEARCH_RESULTS_UPDATED`, `COMMODITY_SEARCH_RESULTS_UPDATED`.
+A timer is for a delay you chose.
+An event is for a fact the client reports.

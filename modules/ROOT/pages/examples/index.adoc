@@ -1,9 +1,7 @@
 = Examples
 
 These are small addons written for this guide.
-Each one strings together calls from the {display-name} {build-version} export and says what that line is doing.
-The scripts are examples.
-They are not scripts shipped by Blizzard.
+Each one strings together calls from {display-name} {build-version} and says what that line is doing.
 
 The xref:auction/overview.adoc[auction chapters] are the long example: query the house, read prices, and save a log.
 The pages here are shorter, and each one is a complete addon you can drop into `Interface/AddOns`.

@@ -8,8 +8,12 @@
 ** xref:lua/strings.adoc[Strings, numbers, and patterns]
 ** xref:lua/environment.adoc[What this client changes]
 * Writing an addon
+** xref:addon/first.adoc[A first addon]
 ** xref:addon/layout.adoc[Addon files]
+** xref:addon/loading.adoc[When it loads]
 ** xref:addon/events.adoc[Frames and events]
+** xref:addon/widgets.adoc[A frame on screen]
+** xref:addon/timers.adoc[Timers]
 ** xref:addon/saved-variables.adoc[Saved variables]
 ** xref:addon/reading-the-api.adoc[Reading a call in Libram]
 * Auction house

@@ -95,3 +95,34 @@ local plain = string.gsub(name or "", "^%s+", "")
 
 A pattern that came from a player, or from an item name, should pass through `string.gsub(text, "([%%%^%$%(%)%.%[%]%*%+%-%?])", "%%%1")` before it is used as a pattern.
 Otherwise a parenthesis in the name is a pattern, not a character.
+
+== Color and links
+
+Chat and font strings read a small markup.
+
+[source,lua]
+----
+local gold = "|cffffd100"
+local line = gold .. "Hello|r"
+----
+
+`|c` starts a color.
+The next eight digits are alpha, red, green, and blue.
+`|r` restores the previous color.
+`|T` draws a texture.
+`|H` and `|h` wrap a link: the first piece is the payload, the text between `|h` and `|h` is what the player sees.
+
+`C_Item.GetItemInfo` returns `itemName` and then `itemLink`.
+It can return nothing when the client has not cached that item yet.
+
+[source,lua]
+----
+local itemName, itemLink = C_Item.GetItemInfo(2589)
+if itemLink then
+  print(itemLink)
+  local itemID = tonumber(string.match(itemLink, "item:(%d+)"))
+end
+----
+
+The link is safe to hand to `SetText`.
+The pattern reads the item id back out.

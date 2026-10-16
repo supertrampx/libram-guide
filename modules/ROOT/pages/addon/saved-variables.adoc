@@ -12,7 +12,9 @@ Declare the global in the TOC:
 ----
 
 Use that global from Lua.
-Give it a table on the first run, after the client has restored any previous save.
+Give it a table on the first run, inside `ADDON_LOADED`, after the client has restored any previous save.
+A line at the top of the file runs before that restore.
+xref:addon/loading.adoc[When it loads] is the order.
 
 [source,lua]
 ----
@@ -22,6 +24,7 @@ local function database()
   return PriceLogDB
 end
 
+-- Call database from ADDON_LOADED or later. Earlier, the global is still nil.
 local function remember(rows)
   local db = database()
   db.scans[#db.scans + 1] = {
@@ -31,8 +34,7 @@ local function remember(rows)
 end
 ----
 
-`C_DateAndTime.GetServerTimeLocal` returns `serverTimeLocal`.
-The export types it as `time_t` and does not add a description.
+`C_DateAndTime.GetServerTimeLocal` returns `serverTimeLocal`, a `time_t`.
 
 == The file the client writes
 
@@ -102,4 +104,9 @@ end
 
 The in-memory table changes immediately.
 The file on disk changes at logout or `/reload`.
-Read the file after one of those, not while the auction house is still open, if you want the newest scan.
+`PLAYER_LOGOUT` is the moment to finish a write you want in that file.
+Read the file after logout or `/reload`, not while the auction house is still open, if you want the newest scan.
+
+`SAVED_VARIABLES_TOO_LARGE` carries `addOnName` when that addon's table is too big to keep.
+A log that appends every scan forever will meet it.
+Keep a bound on `scans`, or store fewer fields on each row.

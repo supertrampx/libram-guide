@@ -22,8 +22,7 @@ Slot indexes are `luaIndex` values, so the slot loop starts at 1.
 
 `ContainerItemInfo` includes `itemID`, `itemName`, `stackCount`, and `hasNoValue`.
 The census skips `hasNoValue` when it adds `sellPrice`, because that field is how the structure marks an item with no vendor value.
-`sellPrice` itself is a return of `GetItemInfo`.
-The export does not add a sentence that says a vendor will buy the item for that amount.
+`sellPrice` is a return of `GetItemInfo`.
 
 Create `Interface/AddOns/BagCensus/` in the `{client-folder}` client.
 
@@ -163,7 +162,7 @@ It rereads the bags once the world is available.
 The census rereads every carried bag so the vendor total still matches the whole inventory.
 
 `GetContainerItemQuestInfo` returns an `ItemQuestInfo`.
-The export does not mark that call as MayReturnNothing, so the script reads `isQuestItem` on every occupied slot.
+The script reads `isQuestItem` on every occupied slot.
 `questID` on that structure can be nil.
 The census only needs the boolean.
 

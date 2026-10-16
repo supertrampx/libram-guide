@@ -84,6 +84,28 @@ local current = watch(2589)
 print(current())
 ----
 
+== Copying methods
+
+`Mixin(object, mixin)` copies fields from the mixin onto `object` and returns `object`.
+Further mixins can follow the first.
+`CreateFromMixins(mixin)` returns a new table with those fields.
+
+[source,lua]
+----
+local Money = {}
+
+function Money:format()
+  return tostring(self.copper or 0)
+end
+
+local row = Mixin({ copper = 5000 }, Money)
+print(row:format())
+----
+
+A metatable shares one method table among many rows.
+`Mixin` is the copy.
+xref:lua/tables.adoc[Tables] shows the shared form.
+
 == Functions as arguments
 
 `table.sort`, `string.gsub`, and `pcall` take functions.
